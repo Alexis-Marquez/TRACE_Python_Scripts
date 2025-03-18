@@ -1,0 +1,8 @@
+# Default ignored files
+/../../TRACE_Python_Scripts /.idea/shelf/
+/../../TRACE_Python_Scripts /.idea/workspace.xml
+# Editor-based HTTP Client requests
+/../../TRACE_Python_Scripts /.idea/httpRequests/
+# Datasource local storage ignored files
+/../../TRACE_Python_Scripts /.idea/dataSources/
+/../../TRACE_Python_Scripts /.idea/dataSources.local.xml
