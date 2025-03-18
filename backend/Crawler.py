@@ -2,6 +2,7 @@ class Crawler:
     config = dict()
 
     def __init__(self, config = None):
+        self.starting_URL = None
         if config is not None:
             self.config = config
         if config is None:
@@ -13,8 +14,6 @@ class Crawler:
                 "RequestDelay": 2000
             }
     def crawl(self):
-        pass
-    def setStartingURL(self):
         pass
     def getConfig(self):
         return self.config
