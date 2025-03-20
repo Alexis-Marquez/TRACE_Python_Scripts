@@ -36,13 +36,7 @@ def test_crawler_constructor4():
                 "UserAgent": "Mozilla/5.0",
                 "RequestDelay": 20000})
     crawler.reset()
-    assert crawler.getConfig() == {
-        "TargetURL": "",
-        "CrawlDepth": 10,
-        "PageNumberLimit": 20,
-        "UserAgent": "",
-        "RequestDelay": 2000
-    }
+    assert crawler.getConfig() == crawler.getDefaultConfig()
 
 def test_crawler_constructor5():
     crawler = Crawler.Crawler({})
@@ -54,7 +48,11 @@ def test_crawler_reset1():
     assert len(crawler.getConfig()) > 0
 
 def test_crawler_reset2():
-    crawler = Crawler.Crawler({"TargetURL": "www.google.com/",})
+    crawler = Crawler.Crawler({"TargetURL": "www.google.com/",
+                "CrawlDepth": 100,
+                "PageNumberLimit": 200,
+                "UserAgent": "Mozilla/5.0",
+                "RequestDelay": 20000})
     crawler.reset()
     assert crawler.getConfig() == crawler.getDefaultConfig()
 

@@ -1,7 +1,6 @@
 from DirectoryTreeCreator import DirectoryTreeCreator
 
-networkMap = [
-    {
+networkMap = [dict({
         'url': "www.google.com",
         'path': "/",
         'children': [
@@ -30,8 +29,7 @@ networkMap = [
                 ]
             }
         ]
-    }
-]
+    })]
 
 treeCreator = DirectoryTreeCreator()
 treeCreator.populate(networkMap)
