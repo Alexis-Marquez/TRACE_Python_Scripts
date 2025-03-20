@@ -154,10 +154,12 @@ class Crawler:
         self.visited_urls = set() #reset curr list of visited urls
         self.page_count = 0 #reset pages count
         self.tree_creator = DirectoryTreeCreator() #reset tree
-    def getCrawlResults(self):
+    def getCrawlResults(self) -> list[str]:
         pass
-        #Return dictionary of crawled paths and responses
-        #return self.op_results if self.op_results else {}
+        #Return a list of URLs that have been crawled
+        #Sample usage (urls = crawler.getCrawlResults())
+        return list(self.op_results.keys())
+    
     def getTree(self):
         pass
     def getDefaultConfig(self):
