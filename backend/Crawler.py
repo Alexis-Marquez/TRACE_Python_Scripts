@@ -1,3 +1,9 @@
+from typing import Dict, Any
+import time
+from urllib.parse import urljoin
+import requests
+from bs4 import BeautifulSoup
+
 class Crawler:
     config = dict()
     default_config =  {
@@ -15,8 +21,94 @@ class Crawler:
         elif config is not None:
             self.config = config
 
-    def crawl(self):
-        pass
+        #Store raw responses as {path:response}
+        self.op_results: Dict[str, Any] = {}
+        #Track visited URLs (not sure if to leave it?? prevents duplicate crawling)
+        self.visited_urls = set()
+        #Track how many pages have been crawled
+        self.page_count = 0
+        #Tree creator instance to handle the tree structure
+        self.tree_creator = DirectoryTreeCreator()
+
+    def processResponse(self, curr_dir: str, request: str, response: str, parent_node = None):
+        """
+        Executes the crawl and handles the HTTP response. Process:
+        1. Stores the response.
+        2. Creates a node for the current URL.
+        3. If parent_node exists it appends current node as a child.
+        4. Sends the parent-child relationship to the DirectoryTreeCreator.
+        5. Extracts links and recursively processes them as children.
+
+        Arguments:
+        curr_dir (str): The current URL being processed.
+        request (str): HTTP request string.
+        response (str): HTTP response content.
+        parent_node (dict): Parent node, set to None when first initiating the crawl.
+
+        Returns: None
+        """
+        #Skip already visited urls, prevents duplicate crawling (feedback?)
+        if curr_dir in self.visited_urls:
+            return
+        #Print statement for testing purposes
+        print(f"Currently crawling: {curr_dir}")
+
+        #Store response in op_results (dict storing the crawled path and its response)
+        self.op_results[curr_dir] = response
+        #Add URL to visited urls
+        self.visited_urls.add(curr_dir)
+        #Update page count
+        self.page_count += 1
+
+        #Node represeting the current URL, path is the last part of the URL (ex. /search)
+        node = {
+            "url": curr_dir,
+            "path": curr_dir.split('/')[-1],
+            "children": []
+        }
+
+        #If a parent node exists, add node to parent-child relationship (ensures every new URL crawled becomes part of the tree, linked to the parent node)
+        if parent_node is not None:
+            parent_node["children"].append(node)
+            #Send node relationship to the tree creator using add_edge()
+            parent = (parent_node["url"], parent_node["path"])
+            child = (node["url"], node["path"])
+            #Update the tree
+            self.tree_creator.add_edge(parent, child)
+        #If parent_node is None this is treated as the root node
+
+        #End crawling if page limit is reached
+        if self.page_count >= self.config['PageNumberLimit']:
+            print("NOTE: Page limit has been reached, ending crawl.")
+            return 
+        
+        #Extract only discovered valid links from the HTML content
+        soup = BeautifulSoup(response, 'html.parser')
+        links = [a.get('href') for a in soup.find_all('a', href=True)]
+
+        #Recursively crawl and process every discovered and valid link
+        for link in links:
+            #Convert relative URLs to absolute URLs
+            next_url = urljoin(curr_dir, link)
+
+            #Process links that have not been crawled yet and only if depth has not been exceeded
+            if next_url not in self.visited_urls and len(self.visited_urls) < self.config['CrawlDepth']:
+                #Avoid overloading the server by delaying between requests
+                time.sleep(self.config['RequestDelay'] / 1000) #convert to secs
+
+                try:
+                    req = requests.get(next_url, headers={'User-Agent': self.config['UserAgent']})
+
+                    #Recursively call processResponse() for the next URL, this creates a flowing parent-child relationship
+                    if req.status_code == 200:
+                        self.processResponse(next_url, f"GET {next_url}", req.text, node)
+                    else:
+                        #Indicate if HTTP response fails
+                        print(f"NOTE: Failed to crawl {next_url}: {req.status_code}")
+                except Exception as e:
+                    #Handle network issues
+                    print(f"Error: Failed to crawl {next_url}: {e}")
+        
     def getConfig(self):
         if self.config is None:
             self.reset()
@@ -39,6 +131,10 @@ class Crawler:
     def reset(self):
         self.config = None
         self.config = self.default_config
+        self.op_results = {} #reset operation results
+        self.visited_urls = set() #reset curr list of visited urls
+        self.page_count = 0 #reset pages count
+        self.tree_creator = DirectoryTreeCreator() #reset tree
     def getCrawlResults(self):
         pass
     def getTree(self):
