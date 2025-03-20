@@ -7,11 +7,16 @@ import csv
 import os
 import time
 import requests
+import unicodedata #added myself
 from bs4 import BeautifulSoup
-
+#TODO: extend stopwords/ extend filtered words list to exclude words < len() == 4 but not for acronyms. Also attempt to split hyphenated words.
 #Natural Language Processing routine that cleans CSV text 
 def nlp_subroutine(csv_path: str):
-    stopwords = {"the", "and", "or"} #Words to clean from CSV file
+    stopwords = {
+        "the", "this", "that", "these", "those",  
+        "each", "every", "either", "neither",     
+        "which", "what", "whose", "who", "whom"
+        } 
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
     cleaned_rows = []
@@ -22,10 +27,18 @@ def nlp_subroutine(csv_path: str):
             raise ValueError("CSV must contain columns: id, content, url")
         for row in reader:
             text = row["content"] if row["content"] else ""
-            words = re.findall(r"\w+", text, flags=re.IGNORECASE)
+            # #Start of edit for separating hyphens
+            text = unicodedata.normalize("NFKC", text)
+            # Replace hyphenated words with comma-separated
+            text = re.sub(r"(\w+)-(\w+)", r"\1, \2", text) #result  = re.sub(r"(\w+)-(\w+)", r"\1, \2", text)#Original
+            # while "-" in result:  # Repeat until all hyphens are replaced
+            #     result = re.sub(r"(\w+)-(\w+)", r"\1, \2", result)
+            # text = result 
+            # #End of separating hypens Failure lead to taking too long, potentially infinite loop
+            words = re.findall(r"\w+", text, flags=re.IGNORECASE) #original
             filtered_words = [
                 word for word in words
-                if word.lower() not in stopwords
+                if word.lower() not in stopwords and (len(word)>= 4 or word.isupper())#added word length and acronym catch
             ]
             cleaned_text = " ".join(filtered_words)
             row["content"] = cleaned_text
@@ -112,30 +125,31 @@ def load_wordlist(file_path: str) -> List[str]:
         return words
     except Exception as e:
         raise ValueError(f"Error reading wordlist file: {e}")
-
-# Class for managing the Markov Decision Process for generating credentials
+#TODO: mess with numbers here
+# Class for managing the Markov Decision Process for generating credentials 
+# #defaults are in another file
 class CredentialMDP:
-    def __init__(self, order: int = 2, gamma: float = 0.9):
+    def __init__(self, order: int = 2, gamma: float = 0.9): #modify gamma and maybe order to increase password length
         self.order = order
         self.gamma = gamma
         self.q_values: Dict[str, Dict[Tuple[str, str], float]] = defaultdict(lambda: defaultdict(float))
         self.state_transitions: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: defaultdict(set))
         self.used_usernames: Set[str] = set()
-        self.epsilon = 0.1
-        self.learning_rate = 0.1
+        self.epsilon = 0.1 #mess with this #this is what influences the greedy algorithm in choosing actions
+        self.learning_rate = 0.1 #mess with this #this is how small a step is taken in each iteration, usually the smaller the better but this can lead to some rediculous runtimes
         self.initial_states: List[str] = []
 
     # Calculate the strength of a password
     def calculate_password_strength(self, password: str) -> float:
         score = 0.0
         if len(password) >= 12:
-            score += 0.3
+            score += 0.3 #weight for length
         if re.search(r'[A-Z]', password):
-            score += 0.2
+            score += 0.2 #weight for characters
         if re.search(r'[0-9]', password):
-            score += 0.2
+            score += 0.2 #weight for integers
         if re.search(r'[!@#$%^&*]', password):
-            score += 0.2
+            score += 0.2 #weight for special characters
         if len(set(password)) >= 8:
             score += 0.1
         return score
@@ -144,22 +158,22 @@ class CredentialMDP:
     def calculate_username_quality(self, username: str) -> float:
         score = 0.0
         if len(username) >= 6:
-            score += 0.3
+            score += 0.3 #weight for password length
         if username not in self.used_usernames:
-            score += 0.4
+            score += 0.4 #weight for uniqueness
         if re.match(r'^[a-z]', username):
-            score += 0.2
+            score += 0.2 #weight for starting with lowercase
         if not re.search(r'\s', username):
-            score += 0.1
+            score += 0.1 #weight for no spaces
         return score
 
     # Get the reward for a state-action pair
     def get_reward(self, state: str, action: str, next_char: str) -> float:
-        if 'username' in state:
+        if 'username' in state:#before this we could also introduce a unique state for special symbols BUT I think it's messy/low priority
             current = state[9:] + next_char
             return self.calculate_username_quality(current) / len(current)
         else:
-            current = state[9:] + next_char
+            current = state[9:] + next_char #we could implement a reward for special characters here
             return self.calculate_password_strength(current) / len(current)
 
     # Get possible actions for a state

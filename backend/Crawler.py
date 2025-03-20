@@ -28,14 +28,34 @@ class Crawler:
 
         #Store raw responses as {path:response}
         self.op_results: Dict[str, Any] = {}
-        #Track visited URLs (not sure if to leave it?? prevents duplicate crawling)
+        #Track visited URLs to prevent duplicate crawling
         self.visited_urls = set()
         #Track how many pages have been crawled
         self.page_count = 0
         #Tree creator instance to handle the tree structure
         self.tree_creator = DirectoryTreeCreator()
 
-    def processResponse(self, curr_dir: str, request: str, response: str, parent_node = None):
+
+    def startCrawl(self):
+        """
+        Handles the initial request to the root node, sends the first HTTP request.
+        Calls processResponse() to process the root node.
+        """
+        #Get the starting URL from the config
+        curr_dir = self.config["TargetURL"]  
+        try:
+            #Make the first request to the root URL
+            req = requests.get(curr_dir, headers={'User-Agent': self.config['UserAgent']})
+            if req.status_code == 200:
+                #First call to processResponse() happens here
+                self.processResponse(curr_dir, req.text)
+            else:
+                print(f"[ERROR] Failed to access target URL: {req.status_code}")
+        except Exception as e:
+            print(f"[ERROR] Connection error: {e}")
+
+
+    def processResponse(self, curr_dir: str, response: str, parent_node = None):
         """
         Executes the crawl and handles the HTTP response. Process:
         1. Stores the response.
@@ -46,13 +66,12 @@ class Crawler:
 
         Arguments:
         curr_dir (str): The current URL being processed.
-        request (str): HTTP request string.
         response (str): HTTP response content.
         parent_node (dict): Parent node, set to None when first initiating the crawl.
 
         Returns: None
         """
-        #Skip already visited urls, prevents duplicate crawling (feedback?)
+        #Skip already visited urls, prevents duplicate crawling
         if curr_dir in self.visited_urls:
             return
         #Print statement for testing purposes
@@ -106,7 +125,7 @@ class Crawler:
 
                     #Recursively call processResponse() for the next URL, this creates a flowing parent-child relationship
                     if req.status_code == 200:
-                        self.processResponse(next_url, f"GET {next_url}", req.text, node)
+                        self.processResponse(next_url, req.text, node)
                     else:
                         #Indicate if HTTP response fails
                         print(f"NOTE: Failed to crawl {next_url}: {req.status_code}")
@@ -140,8 +159,12 @@ class Crawler:
         self.visited_urls = set() #reset curr list of visited urls
         self.page_count = 0 #reset pages count
         self.tree_creator = DirectoryTreeCreator() #reset tree
-    def getCrawlResults(self):
-        return self.op_results
+        
+    def getCrawlResults(self) -> list[str]:
+        #Return a list of URLs that have been crawled
+        #Sample usage (urls = crawler.getCrawlResults())
+        return list(self.op_results.keys())
+    
     def getTree(self):
         return self.visited_urls
     def getDefaultConfig(self):
