@@ -1,5 +1,5 @@
-from Tree import Tree
-from utils import getURL, getPath  # helper functions that did not really belong in this class
+from backend.Tree import Tree
+from backend.utils import getURL, getPath  # helper functions that did not really belong in this class
 
 """
 # Crawler data will have this format:
@@ -37,16 +37,16 @@ class DirectoryTreeCreator:
     def populate(self, crawl_data: dict, display=False) -> None:  # recursively populates the tree (which has a graph structure)
         # TODO display the tree as it is being built (we might require the indent parameter like the display_pretty function)
         for node in crawl_data:
-            url = node['url']
-            path = node['path']
-            children = node['children']
+            url = node.get('url')
+            path = node.get('path')
+            children = node.get('children')
             vertex = (
                 url,
                 path
             )
             for child_node in children:
-                child_url = child_node['url']
-                child_path = child_node['path']
+                child_url = child_node.get('url')
+                child_path = child_node.get('path')
                 child_vertex = (
                     child_url,
                     child_path
