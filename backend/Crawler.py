@@ -3,11 +3,12 @@ import time
 from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
+from backend.DirectoryTreeCreator import DirectoryTreeCreator
 
 class Crawler:
     config = dict()
     default_config =  {
-            "TargetURL": "",
+            "TargetURL": "www.example.com",
             "CrawlDepth": 10,
             "PageNumberLimit": 20,
             "UserAgent": "",
@@ -16,10 +17,14 @@ class Crawler:
     def __init__(self, config = None):
         if config is None:
             self.reset()
+            return
         elif len(config) == 0:
             self.reset()
-        elif config is not None:
-            self.config = config
+            return
+        for key in self.default_config.keys():
+            if key not in config:
+                raise KeyError("Invalid config dictionary")
+        self.config = config
 
         #Store raw responses as {path:response}
         self.op_results: Dict[str, Any] = {}
@@ -136,8 +141,8 @@ class Crawler:
         self.page_count = 0 #reset pages count
         self.tree_creator = DirectoryTreeCreator() #reset tree
     def getCrawlResults(self):
-        pass
+        return self.op_results
     def getTree(self):
-        pass
+        return self.visited_urls
     def getDefaultConfig(self):
         return self.default_config
