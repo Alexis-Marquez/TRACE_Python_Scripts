@@ -7,11 +7,16 @@ import csv
 import os
 import time
 import requests
+import unicodedata #added myself
 from bs4 import BeautifulSoup
 #TODO: extend stopwords/ extend filtered words list to exclude words < len() == 4 but not for acronyms. Also attempt to split hyphenated words.
 #Natural Language Processing routine that cleans CSV text 
 def nlp_subroutine(csv_path: str):
-    stopwords = {"the", "and", "or"} #Words to clean from CSV file
+    stopwords = {
+        "the", "this", "that", "these", "those",  
+        "each", "every", "either", "neither",     
+        "which", "what", "whose", "who", "whom"
+        } 
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
     cleaned_rows = []
@@ -22,10 +27,18 @@ def nlp_subroutine(csv_path: str):
             raise ValueError("CSV must contain columns: id, content, url")
         for row in reader:
             text = row["content"] if row["content"] else ""
-            words = re.findall(r"\w+", text, flags=re.IGNORECASE)
+            # #Start of edit for separating hyphens
+            text = unicodedata.normalize("NFKC", text)
+            # Replace hyphenated words with comma-separated
+            text = re.sub(r"(\w+)-(\w+)", r"\1, \2", text) #result  = re.sub(r"(\w+)-(\w+)", r"\1, \2", text)#Original
+            # while "-" in result:  # Repeat until all hyphens are replaced
+            #     result = re.sub(r"(\w+)-(\w+)", r"\1, \2", result)
+            # text = result 
+            # #End of separating hypens Failure lead to taking too long, potentially infinite loop
+            words = re.findall(r"\w+", text, flags=re.IGNORECASE) #original
             filtered_words = [
                 word for word in words
-                if word.lower() not in stopwords
+                if word.lower() not in stopwords and (len(word)>= 4 or word.isupper())#added word length and acronym catch
             ]
             cleaned_text = " ".join(filtered_words)
             row["content"] = cleaned_text
