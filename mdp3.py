@@ -135,8 +135,8 @@ class CredentialMDP:
         self.q_values: Dict[str, Dict[Tuple[str, str], float]] = defaultdict(lambda: defaultdict(float))
         self.state_transitions: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: defaultdict(set))
         self.used_usernames: Set[str] = set()
-        self.epsilon = 0.01 #mess with this #this is what influences the greedy algorithm in choosing actions
-        self.learning_rate = 0.001 #mess with this #this is how small a step is taken in each iteration, usually the smaller the better but this can lead to some rediculous runtimes
+        self.epsilon = 0.1 #mess with this #this is what influences the greedy algorithm in choosing actions
+        self.learning_rate = 0.1 #mess with this #this is how small a step is taken in each iteration, usually the smaller the better but this can lead to some rediculous runtimes
         self.initial_states: List[str] = []
 
     # Calculate the strength of a password
@@ -160,15 +160,13 @@ class CredentialMDP:
         if len(username) >= 6:
             score += 0.3 #weight for password length
         if username not in self.used_usernames:
-            score += 0.5 #weight for uniqueness
+            score += 0.4 #weight for uniqueness
         if re.match(r'^[a-z]', username):
             score += 0.2 #weight for starting with lowercase
         if not re.search(r'\s', username):
             score += 0.1 #weight for no spaces
         if re.match(r'^\d', username):
             score -= 0.5  # Strong penalty for starting with a number
-        if re.search(r'[^a-zA-Z0-9]', username):  
-            score -= 0.9  # Penalize non-English (non-ASCII) characters 
         return score
 
     # Get the reward for a state-action pair
@@ -190,6 +188,11 @@ class CredentialMDP:
         if not possible_actions:
             return "", ""
 
+        # filter possible actions to exclude non-English characters
+        possible_actions = [act for act in possible_actions if re.match(r'^[a-zA-Z0-9]$', act)]
+        if not possible_actions:
+            return "", ""
+        
         if random.random() < self.epsilon:
             action = random.choice(possible_actions)
             next_char = random.choice(list(self.state_transitions[state][action]))
