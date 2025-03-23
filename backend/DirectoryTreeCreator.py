@@ -1,14 +1,99 @@
-from Tree import Tree
+from backend.Tree import Tree
+from backend.utils import getURL, getPath  # helper functions that did not really belong in this class
+
+"""
+# Crawler data will have this format:
+let networkMap = [
+    {
+        url: "www.google.com",
+        path: "/",
+        children: [
+            {
+                url: "www.google.com/search",
+                path: "/search",
+                children: [
+                    {
+                        url: "www.google.com/search/search",
+                        path: "/search/search",
+                        children: []
+                    }
+                ]
+            }
+        ]
+    }
+];
+"""
 
 class DirectoryTreeCreator:
     def __init__(self, tree = Tree()) -> None:
         self.tree = tree
+        self.tree_map = {}
 
-    # TODO 1. figure out what format the crawler team will use for the crawl data
-    # TODO 2. populate the tree from the given data
-    def populate(self, crawl_data):
-        pass
+    def get_tree(self) -> Tree:  # function from srs
+        return self.tree
 
-    def display_tree(self) -> None:
+    def reset(self) -> None:  # function from srs
+        self.tree = Tree()
+
+    def populate(self, crawl_data: dict, display=False) -> None:  # recursively populates the tree (which has a graph structure)
+        # TODO display the tree as it is being built (we might require the indent parameter like the display_pretty function)
+        for node in crawl_data:
+            url = node.get('url')
+            path = node.get('path')
+            children = node.get('children')
+            vertex = (
+                url,
+                path
+            )
+            for child_node in children:
+                child_url = child_node.get('url')
+                child_path = child_node.get('path')
+                child_vertex = (
+                    child_url,
+                    child_path
+                )
+                self.tree.add_edge(vertex, child_vertex)
+            self.populate(children)
+
+    def add_edge(self, src: tuple[str, str], dst: tuple[str, str], display=False) -> None:  # wrapper for add_edge on the tree structure
+        if not isinstance(src, tuple) or len(src) != 2:
+            raise ValueError(f"Vertex {src} is not properly formatted! Format should be a tuple of the form: (url, path)")
+        if not isinstance(dst, tuple) or len(dst) != 2:
+            raise ValueError(f"Vertex {dst} is not properly formatted! Format should be a tuple of the form: (url, path)")
+        self.tree.add_edge(src, dst)
+
+        if display:  # TODO display the tree as it is being built (we might require the indent parameter like the display_pretty function)
+            pass
+
+    def display_data(self) -> None:  # displays all the data currently stored
         for vertex in self.tree.dir_tree:
-            print(f"{vertex} -> {self.tree.dir_tree[vertex]}")
+            print(f"{getURL(vertex)}  {self.tree.dir_tree[vertex]}")
+
+    def display_pretty(self, root, indent="") -> None:  # displays the data starting from a specified root
+        children = self.tree.dir_tree[root]
+        if children:
+            print(f"{indent}{getURL(root)} --> ")
+        else:
+            print(f"{indent}{getURL(root)}")
+
+        for child in children:
+            if child in self.tree.dir_tree:
+                self.display_pretty(child, f"{indent}\t")
+            else:
+                raise ValueError(f"Vertex {child} was found as a children of {root}, but it was not found on the graph!")
+            
+    def get_tree_map(self, root) -> dict:
+        children = self.tree.dir_tree[root]
+        node_map = {}
+
+        for child in children:
+            if child in self.tree.dir_tree:
+                node_map[getURL(child)] = self.get_tree_map(child)
+            else:
+                raise ValueError(f"Vertex {child} was found as a child of {root}, but it was not found in the graph!")
+
+        return node_map
+
+    def save_tree_map(self, root) -> dict:
+        self.tree_map = {getURL(root): self.get_tree_map(root)}
+        return self.tree_map
