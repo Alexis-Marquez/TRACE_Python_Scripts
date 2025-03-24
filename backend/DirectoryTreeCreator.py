@@ -1,5 +1,5 @@
 from backend.Tree import Tree
-from backend.utils import getURL, getPath  # helper functions that did not really belong in this class
+from backend.utils import getURL, getIP  # helper functions that did not really belong in this class
 
 """
 # Crawler data will have this format:
@@ -27,7 +27,6 @@ let networkMap = [
 class DirectoryTreeCreator:
     def __init__(self, tree = Tree()) -> None:
         self.tree = tree
-        self.tree_map = {}
 
     def get_tree(self) -> Tree:  # function from srs
         return self.tree
@@ -81,19 +80,18 @@ class DirectoryTreeCreator:
                 self.display_pretty(child, f"{indent}\t")
             else:
                 raise ValueError(f"Vertex {child} was found as a children of {root}, but it was not found on the graph!")
-            
-    def get_tree_map(self, root) -> dict:
-        children = self.tree.dir_tree[root]
-        node_map = {}
 
+    def get_tree_map(self, root) -> list:
+        children = self.tree.dir_tree.get(root)
+        node_map = []
         for child in children:
             if child in self.tree.dir_tree:
-                node_map[getURL(child)] = self.get_tree_map(child)
+                node_map.append({
+                    "ip": getIP(child),
+                    "path": getURL(child),
+                    "children": self.get_tree_map(child)
+                })
             else:
                 raise ValueError(f"Vertex {child} was found as a child of {root}, but it was not found in the graph!")
 
         return node_map
-
-    def save_tree_map(self, root) -> dict:
-        self.tree_map = {getURL(root): self.get_tree_map(root)}
-        return self.tree_map
