@@ -82,16 +82,25 @@ class DirectoryTreeCreator:
                 raise ValueError(f"Vertex {child} was found as a children of {root}, but it was not found on the graph!")
 
     def get_tree_map(self, root) -> list:
-        children = self.tree.dir_tree.get(root)
-        node_map = []
+        children = self.tree.dir_tree.get(root, [])
+        children_list = []
         for child in children:
-            if child in self.tree.dir_tree:
-                node_map.append({
-                    "ip": getIP(child),
-                    "path": getURL(child),
-                    "children": self.get_tree_map(child)
-                })
-            else:
-                raise ValueError(f"Vertex {child} was found as a child of {root}, but it was not found in the graph!")
+             children_list.append(self.get_tree_map_children(child))
+        node_map = [{
+            "ip": getIP(root),
+            "path": getURL(root),
+            "children": [children_list]  # Recursively call for each child
+        }]
+        return node_map
 
+    def get_tree_map_children(self, child):
+        children = self.tree.dir_tree.get(child)
+        children_list = []
+        for child in children:
+            children_list.append(self.get_tree_map_children(child))
+        node_map = {
+            "ip": getIP(child),
+            "path": getURL(child),
+            "children": [children_list]  # Recursively call for each child
+        }
         return node_map

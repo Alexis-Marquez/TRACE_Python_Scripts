@@ -16,7 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-crawler_data: Optional[Dict[str, Any]] = None
+crawler_data: Optional[list[Dict[str, Any]]] = None
 crawler_links: Optional[list[str]] = None
 
 class CrawlerConfig(BaseModel):
@@ -28,6 +28,7 @@ class CrawlerConfig(BaseModel):
 
 @app.post("/crawler")
 def set_up_crawler(config: CrawlerConfig):
+    print("yes")
     global crawler_data, crawler_links
     try:
         crawler_data = None
@@ -45,6 +46,7 @@ def set_up_crawler(config: CrawlerConfig):
 
         return {"message": "Crawl completed successfully"}
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/crawler/data")

@@ -44,6 +44,7 @@ class Crawler:
         self.page_count = int(0)
         #Tree creator instance to handle the tree structure
         self.tree_creator = DirectoryTreeCreator()
+        self.curr_depth = 0
 
 
     def startCrawl(self):
@@ -58,8 +59,17 @@ class Crawler:
             #Make the first request to the root URL
             req = requests.get(curr_dir, headers={'User-Agent': self.config['UserAgent']})
             if req.status_code == 200:
+                # Print statement for testing purposes
+                print(f"Currently crawling: {curr_dir}")
+
+                # Node represeting the current URL, path is the last part of the URL (ex. /search)
+                node = {
+                    "url": curr_dir,
+                    "ip": socket.gethostbyname(curr_dir.split('/')[2]),
+                    "children": []
+                }
                 #First call to processResponse() happens here
-                self.processResponse(curr_dir, req.text)
+                self.processResponse(curr_dir, req.text, node)
             else:
                 print(f"[ERROR] Failed to access target URL: {req.status_code}")
         except Exception as e:
@@ -85,40 +95,21 @@ class Crawler:
         #Skip already visited urls, prevents duplicate crawling
         if curr_dir in self.visited_urls:
             return
-        #Print statement for testing purposes
-        print(f"Currently crawling: {curr_dir}")
-
-        #Store response in op_results (dict storing the crawled path and its response)
-        self.op_results[curr_dir] = response
-        #Add URL to visited urls
-        self.visited_urls.add(curr_dir)
-        #Update page count
-        self.page_count += 1
-
-        #Node represeting the current URL, path is the last part of the URL (ex. /search)
-        node = {
-            "url": curr_dir,
-            "ip": socket.gethostbyname(curr_dir.split('/')[2]),
-            "children": []
-        }
 
         #If a parent node exists, add node to parent-child relationship (ensures every new URL crawled becomes part of the tree, linked to the parent node)
-        if parent_node is not None:
-            if node not in parent_node["children"]:
-                parent_node["children"].append(node)
 
-                parent = (parent_node["url"], parent_node["ip"])
-                child = (node["url"], node["ip"])
-
-                # Prevent duplicate edges in tree_creator
-                if child not in self.tree_creator.tree.dir_tree.get(parent, []):
-                    self.tree_creator.add_edge(parent, child)
 
         #End crawling if page limit is reached
         if self.page_count >= self.config['PageNumberLimit']:
             print("NOTE: Page limit has been reached, ending crawl.")
-            return 
-        
+            return
+
+        # Store response in op_results (dict storing the crawled path and its response)
+        self.op_results[curr_dir] = response
+        # Add URL to visited urls
+        self.visited_urls.add(curr_dir)
+        # Update page count
+        self.page_count += 1
         #Extract only discovered valid links from the HTML content
         soup = BeautifulSoup(response, 'html.parser')
         links = [a.get('href') for a in soup.find_all('a', href=True)]
@@ -130,16 +121,31 @@ class Crawler:
             next_url = urljoin(curr_dir, link)
 
             #Process links that have not been crawled yet and only if depth has not been exceeded
-            if next_url not in self.visited_urls and len(self.visited_urls) < self.config['CrawlDepth']:
+            if next_url not in self.visited_urls and self.curr_depth < self.config['CrawlDepth'] and len(self.visited_urls) < self.config['PageNumberLimit']:
                 #Avoid overloading the server by delaying between requests
                 time.sleep(self.config['RequestDelay'] / 1000) #convert to secs
-
+                print(f"Currently crawling: {next_url}")
                 try:
                     req = requests.get(next_url, headers={'User-Agent': self.config['UserAgent']})
-
+                    self.visited_urls.add(next_url)
                     #Recursively call processResponse() for the next URL, this creates a flowing parent-child relationship
                     if req.status_code == 200:
-                        self.processResponse(next_url, req.text, node)
+                        node = {
+                            "url": next_url,
+                            "ip": socket.gethostbyname(next_url.split('/')[2]),
+                            "children": []
+                        }
+                        if node not in parent_node["children"]:
+                            parent_node["children"].append(node)
+
+                            parent = (parent_node["url"], parent_node["ip"])
+                            child = (node["url"], node["ip"])
+
+                            # Prevent duplicate edges in tree_creator
+                            if child not in self.tree_creator.tree.dir_tree.get(parent, []):
+                                self.tree_creator.add_edge(parent, child)
+                        # self.curr_depth +=1
+                        # self.processResponse(next_url, req.text, node)
                     else:
                         #Indicate if HTTP response fails
                         print(f"NOTE: Failed to crawl {next_url}: {req.status_code}")
