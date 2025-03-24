@@ -10,7 +10,7 @@ class Crawler:
     default_config =  {
             "TargetURL": "www.example.com",
             "CrawlDepth": 10,
-            "PageNumberLimit": 20,
+            "PageNumberLimit": int(20),
             "UserAgent": "",
             "RequestDelay": 2000
         }
@@ -24,14 +24,23 @@ class Crawler:
         for key in self.default_config.keys():
             if key not in config:
                 raise KeyError("Invalid config dictionary")
-        self.config = config
+        try:
+            self.config = {
+                "TargetURL": config["TargetURL"],
+                "CrawlDepth": int(config["CrawlDepth"]),
+                "PageNumberLimit": int(config["PageNumberLimit"]),
+                "UserAgent": config["UserAgent"],
+                "RequestDelay": float(config["RequestDelay"]),
+            }
+        except ValueError as e:
+            raise ValueError(f"Invalid config values: {e}")
 
         #Store raw responses as {path:response}
         self.op_results: Dict[str, Any] = {}
         #Track visited URLs to prevent duplicate crawling
         self.visited_urls = set()
         #Track how many pages have been crawled
-        self.page_count = 0
+        self.page_count = int(0)
         #Tree creator instance to handle the tree structure
         self.tree_creator = DirectoryTreeCreator()
 
@@ -76,7 +85,6 @@ class Crawler:
             return
         #Print statement for testing purposes
         print(f"Currently crawling: {curr_dir}")
-
         #Store response in op_results (dict storing the crawled path and its response)
         self.op_results[curr_dir] = response
         #Add URL to visited urls
@@ -87,7 +95,7 @@ class Crawler:
         #Node represeting the current URL, path is the last part of the URL (ex. /search)
         node = {
             "url": curr_dir,
-            "path": curr_dir.split('/')[-1],
+            "ip": curr_dir.split('/')[-1],
             "children": []
         }
 
@@ -95,8 +103,8 @@ class Crawler:
         if parent_node is not None:
             parent_node["children"].append(node)
             #Send node relationship to the tree creator using add_edge()
-            parent = (parent_node["url"], parent_node["path"])
-            child = (node["url"], node["path"])
+            parent = (parent_node["url"], parent_node["ip"])
+            child = (node["url"], node["ip"])
             #Update the tree
             self.tree_creator.add_edge(parent, child)
         #If parent_node is None this is treated as the root node
@@ -109,7 +117,8 @@ class Crawler:
         #Extract only discovered valid links from the HTML content
         soup = BeautifulSoup(response, 'html.parser')
         links = [a.get('href') for a in soup.find_all('a', href=True)]
-
+        links = [link for link in links if not link.startswith("#")]
+        links = [link for link in links if not ':' in link.split('/')[-1]]
         #Recursively crawl and process every discovered and valid link
         for link in links:
             #Convert relative URLs to absolute URLs
