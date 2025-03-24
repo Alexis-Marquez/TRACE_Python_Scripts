@@ -1,3 +1,4 @@
+import socket
 from typing import Dict, Any
 import time
 from urllib.parse import urljoin
@@ -65,7 +66,7 @@ class Crawler:
             print(f"[ERROR] Connection error: {e}")
 
 
-    def processResponse(self, curr_dir: str, response: str, parent_node = None):
+    def processResponse(self, curr_dir: str, response:str, parent_node = None):
         """
         Executes the crawl and handles the HTTP response. Process:
         1. Stores the response.
@@ -86,6 +87,7 @@ class Crawler:
             return
         #Print statement for testing purposes
         print(f"Currently crawling: {curr_dir}")
+
         #Store response in op_results (dict storing the crawled path and its response)
         self.op_results[curr_dir] = response
         #Add URL to visited urls
@@ -96,7 +98,7 @@ class Crawler:
         #Node represeting the current URL, path is the last part of the URL (ex. /search)
         node = {
             "url": curr_dir,
-            "ip": curr_dir.split('/')[-1],
+            "ip": socket.gethostbyname(curr_dir.split('/')[2]),
             "children": []
         }
 
