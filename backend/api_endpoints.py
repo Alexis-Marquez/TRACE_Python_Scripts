@@ -35,8 +35,11 @@ def set_up_crawler(config: CrawlerConfig):
 
         crawler = Crawler(config.model_dump())
         print("Received config:", config)
+        print(f"Tree before crawl: {crawler.tree_creator.display_data()}")
 
         crawler.startCrawl()
+        print(f"Tree after crawl: {crawler.tree_creator.display_data()}")
+
         crawler_data = crawler.tree_creator.get_tree_map(crawler.tree_creator.tree.root)
         crawler_links = crawler.getCrawlResults()
 

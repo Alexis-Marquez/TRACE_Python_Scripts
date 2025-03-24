@@ -51,6 +51,7 @@ class Crawler:
         Calls processResponse() to process the root node.
         """
         #Get the starting URL from the config
+        self.tree_creator = DirectoryTreeCreator()
         curr_dir = self.config["TargetURL"]  
         try:
             #Make the first request to the root URL
@@ -101,13 +102,15 @@ class Crawler:
 
         #If a parent node exists, add node to parent-child relationship (ensures every new URL crawled becomes part of the tree, linked to the parent node)
         if parent_node is not None:
-            parent_node["children"].append(node)
-            #Send node relationship to the tree creator using add_edge()
-            parent = (parent_node["url"], parent_node["ip"])
-            child = (node["url"], node["ip"])
-            #Update the tree
-            self.tree_creator.add_edge(parent, child)
-        #If parent_node is None this is treated as the root node
+            if node not in parent_node["children"]:
+                parent_node["children"].append(node)
+
+                parent = (parent_node["url"], parent_node["ip"])
+                child = (node["url"], node["ip"])
+
+                # Prevent duplicate edges in tree_creator
+                if child not in self.tree_creator.tree.dir_tree.get(parent, []):
+                    self.tree_creator.add_edge(parent, child)
 
         #End crawling if page limit is reached
         if self.page_count >= self.config['PageNumberLimit']:
@@ -118,7 +121,7 @@ class Crawler:
         soup = BeautifulSoup(response, 'html.parser')
         links = [a.get('href') for a in soup.find_all('a', href=True)]
         links = [link for link in links if not link.startswith("#")]
-        links = [link for link in links if not ':' in link.split('/')[-1]]
+        links = [link for link in links if not ':' in link.split('/')]
         #Recursively crawl and process every discovered and valid link
         for link in links:
             #Convert relative URLs to absolute URLs
