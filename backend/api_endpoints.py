@@ -7,16 +7,17 @@ from backend.Crawler import Crawler
 from mdp3 import WebScraper, nlp_subroutine, CredentialGeneratorMDP
 
 app = FastAPI()
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
-crawler_data: Optional[list[Dict[str, Any]]] = None
+
+crawler_data: Optional [Dict[str, Any]] = None
 crawler_links: Optional[list[str]] = None
 
 class CrawlerConfig(BaseModel):

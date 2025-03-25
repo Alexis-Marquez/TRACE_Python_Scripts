@@ -89,7 +89,7 @@ class DirectoryTreeCreator:
         node_map = [{
             "ip": getIP(root),
             "path": getURL(root),
-            "children": [children_list]  # Recursively call for each child
+            "children": children_list  # Recursively call for each child
         }]
         return node_map
 
@@ -101,6 +101,6 @@ class DirectoryTreeCreator:
         node_map = {
             "ip": getIP(child),
             "path": getURL(child),
-            "children": [children_list]  # Recursively call for each child
+            "children": children_list  # Recursively call for each child
         }
         return node_map
