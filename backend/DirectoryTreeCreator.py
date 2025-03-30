@@ -89,18 +89,18 @@ class DirectoryTreeCreator:
         node_map = [{
             "ip": getIP(root),
             "path": getURL(root),
-            "children": children_list  # Recursively call for each child
+            "children": children_list
         }]
         return node_map
 
     def get_tree_map_children(self, child):
         children = self.tree.dir_tree.get(child)
         children_list = []
-        for child in children:
-            children_list.append(self.get_tree_map_children(child))
+        for grandchild in children:
+            children_list.append(self.get_tree_map_children(grandchild))
         node_map = {
             "ip": getIP(child),
             "path": getURL(child),
-            "children": children_list  # Recursively call for each child
+            "children": children_list
         }
         return node_map
