@@ -1,9 +1,8 @@
 import socket
 from typing import Dict, Any
-import time
 from urllib.parse import urljoin, urlparse
-import requests
 from bs4 import BeautifulSoup
+from utils import send_get_request
 
 from backend.DirectoryTreeCreator import DirectoryTreeCreator
 
@@ -133,12 +132,17 @@ class Crawler:
     def start_crawl(self):
         self.tree_creator.reset()
         curr_dir = self.config["TargetURL"]
-        response = self.send_request(curr_dir)
-        parent_node = {
-            "url": curr_dir,
-            "ip": socket.gethostbyname(urlparse(curr_dir).hostname),
-            "children": []
-        }
+        response, status_code = send_get_request(curr_dir, self.config['RequestDelay'],self.page_count,self.config['PageNumberLimit'], self.config['UserAgent'])
+        if status_code == 200:
+            self.op_results[curr_dir] = response
+            self.visited_urls.add(curr_dir)
+            self.page_count+=1
+
+            parent_node = {
+                "url": curr_dir,
+                "ip": socket.gethostbyname(urlparse(curr_dir).hostname),
+                "children": []
+            }
         self.process_response(response, parent_node, curr_dir, depth_count=0)
 
     def process_response(self, response, parent_node, curr_dir, depth_count=0):
@@ -157,45 +161,32 @@ class Crawler:
             if link in self.visited_urls:
                 continue
 
-            response = self.send_request(link)
-            if not response:
-                continue
+            response, status_code = send_get_request(link, self.config['RequestDelay'],self.page_count,self.config['PageNumberLimit'], self.config['UserAgent'])
+            if status_code == 200:
+                self.op_results[curr_dir] = response
+                self.visited_urls.add(curr_dir)
+                self.page_count+=1
+                if not response:
+                    continue
 
-            node = {
-                "url": link,
-                "ip": socket.gethostbyname(urlparse(link).hostname),
-                "children": []
-            }
+                node = {
+                    "url": link,
+                    "ip": socket.gethostbyname(urlparse(link).hostname),
+                    "children": []
+                }
 
-            if parent_node is not None:
-                if node not in parent_node["children"]:
-                    parent_node["children"].append(node)
+                if parent_node is not None:
+                    if node not in parent_node["children"]:
+                        parent_node["children"].append(node)
 
-                    parent = (parent_node["url"], parent_node["ip"])
-                    child = (node["url"], node["ip"])
+                        parent = (parent_node["url"], parent_node["ip"])
+                        child = (node["url"], node["ip"])
 
-                    if child not in self.tree_creator.tree.dir_tree.get(parent, []):
-                        self.tree_creator.add_edge(parent, child)
+                        if child not in self.tree_creator.tree.dir_tree.get(parent, []):
+                            self.tree_creator.add_edge(parent, child)
 
             self.process_response(response, node, link, depth_count + 1)
 
-    def send_request(self, curr_dir):
-        if self.page_count >= self.config['PageNumberLimit']:
-            return None
-        time.sleep(self.config['RequestDelay'] / 1000)
-        try:
-            req = requests.get(curr_dir, headers={'User-Agent': self.config['UserAgent']})
-            if req.status_code == 200:
-                print(f"Currently crawling: {curr_dir}")
-                self.op_results[curr_dir] = req.text
-                self.visited_urls.add(curr_dir)
-                self.page_count+=1
-                return req.text
-            else:
-                print(f"[ERROR] Failed to access {curr_dir}: {req.status_code}")
-        except Exception as e:
-            print(f"[ERROR] Connection error: {e}")
-        return None
 
     def get_valid_links(self, response: str, curr_dir):
         soup = BeautifulSoup(response, 'html.parser')

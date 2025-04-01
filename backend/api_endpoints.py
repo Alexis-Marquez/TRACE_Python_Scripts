@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, Optional
 
 from backend.Crawler import Crawler
+from backend.Fuzzer import Fuzzer
 from mdp3 import WebScraper, nlp_subroutine, CredentialGeneratorMDP
 
 app = FastAPI()
@@ -27,6 +28,43 @@ class CrawlerConfig(BaseModel):
     UserAgent: str
     RequestDelay: float
 
+
+class FuzzerConfig(BaseModel):
+    TargetURL: str
+    HTTPMethod: str
+    Cookies: str
+    HideStatusCode: list
+    ShowOnlyStatusCode: list
+    PageLimit: int
+    WordList: list
+
+@app.post("/fuzzer")
+def set_up_fuzzer(config: FuzzerConfig):
+    global fuzzer_data, fuzzer_links
+    try:
+        fuzzer_data = None
+        fuzzer_links = None
+
+        fuzzer = Fuzzer(config.model_dump())
+        print("Received config: ", config)
+        fuzzer.start()
+        
+        fuzzer_data = fuzzer.get_data()
+        fuzzer_links = fuzzer.get_links()
+
+        return {"message": "Fuzz completed successfully"}
+
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/fuzzer/data")
+def get_fuzzer_data():
+    if fuzzer_data is None:
+        raise HTTPException(status_code=400, detail="No data available")
+    return fuzzer_data
+    
 @app.post("/crawler")
 def set_up_crawler(config: CrawlerConfig):
     global crawler_data, crawler_links
