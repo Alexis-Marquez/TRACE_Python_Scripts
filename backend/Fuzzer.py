@@ -62,14 +62,7 @@ class Fuzzer:
         string_length = random.randint(0, max_length)
         return ''.join(random.choice(characters) for _ in range(string_length))
 
-    def start_fuzzer_get(self):
-        fuzzed_string = self.generate_fuzzing_params()  
-        self.fuzz("", "GET", fuzzed_string)
-        for word in self.config['WordList']:
-            if self.page_count >= self.config['PageLimit']:
-                return
-            fuzzed_string = self.generate_fuzzing_params()
-            self.fuzz(word, "GET" , fuzzed_string)
+
 
     def fuzz(self, word, mode, fuzzed_string=None, json_string=None):
         
@@ -87,23 +80,37 @@ class Fuzzer:
         self.visited_urls.add(curr_dir)
         self.page_count+=1
 
-    def start_fuzzer_put(self):
+    def start_fuzzer_get(self):
+        fuzzed_string = self.generate_fuzzing_params()
+        self.fuzz("", "GET", fuzzed_string)
+        while self.page_count < self.config['PageLimit']:
             for word in self.config['WordList']:
                 if self.page_count >= self.config['PageLimit']:
                     return
-                fuzzed_string = self.generate_fuzzing_params()   
-                json_string = {word:fuzzed_string} 
-                json_string = json.dumps(json_string)
+                fuzzed_string = self.generate_fuzzing_params()
+                self.fuzz(word, "GET" , fuzzed_string)
+
+    def start_fuzzer_put(self):
+        while self.page_count < self.config['PageLimit']:
+            for word in self.config['WordList']:
+                if self.page_count >= self.config['PageLimit']:
+                    return
+
+                fuzzed_string = self.generate_fuzzing_params()
+                json_string = json.dumps({word: fuzzed_string})
                 self.fuzz(word, "PUT", fuzzed_string, json_string)
 
+    import json
+
     def start_fuzzer_post(self):
-        for word in self.config['WordList']:
-            if self.page_count >= self.config['PageLimit']:
-                return
-            fuzzed_string = self.generate_fuzzing_params()
-            json_string = {word:fuzzed_string}
-            json_string = json.dumps(json_string)
-            self.fuzz(word, "POST", fuzzed_string, json_string)
+        while self.page_count < self.config['PageLimit']:
+            for word in self.config['WordList']:
+                if self.page_count >= self.config['PageLimit']:  # Double check to prevent overflow
+                    return
+
+                fuzzed_string = self.generate_fuzzing_params()
+                json_string = json.dumps({word: fuzzed_string})
+                self.fuzz(word, "POST", fuzzed_string, json_string)
 
     def get_data(self):
         return self.op_results
