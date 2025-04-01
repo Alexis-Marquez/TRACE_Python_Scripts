@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException
+import threading
+
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
@@ -8,6 +10,9 @@ from backend.Fuzzer import Fuzzer
 from mdp3 import WebScraper, nlp_subroutine, CredentialGeneratorMDP
 
 app = FastAPI()
+
+stop_event = threading.Event()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -71,26 +76,22 @@ def get_fuzzer_data():
     return fuzzer_data
     
 @app.post("/crawler")
-def set_up_crawler(config: CrawlerConfig):
+async def set_up_crawler(config: CrawlerConfig, background_tasks: BackgroundTasks):
     global crawler_data, crawler_links
-    try:
+    crawler_data = None
+    crawler_links = None
+
+    def run_crawler():
+        global crawler_data, crawler_links
         crawler_data = None
         crawler_links = None
-
         crawler = Crawler(config.model_dump())
-        print("Received config:", config)
-        if crawler.tree_creator is not None:
-            print(f"Tree before crawl: {crawler.tree_creator.display_data()}")
         crawler.start_crawl()
-        print(f"Tree after crawl: {crawler.tree_creator.display_pretty(crawler.tree_creator.tree.root, '    ')}")
-
         crawler_data = crawler.tree_creator.get_tree_map(crawler.tree_creator.tree.root)
         crawler_links = crawler.getCrawlResults()
 
-        return {"message": "Crawl completed successfully"}
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=400, detail=str(e))
+    background_tasks.add_task(run_crawler)
+    return {"message": "Crawl started in the background"}
 
 @app.get("/crawler/data")
 def get_crawler_data():
@@ -117,3 +118,9 @@ def get_webscraper_data():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating credentials: {e}")
 
+def set_crawler_data(data):
+    global crawler_data
+    crawler_data = data
+def set_crawler_links(links):
+    global crawler_links
+    crawler_links = links
