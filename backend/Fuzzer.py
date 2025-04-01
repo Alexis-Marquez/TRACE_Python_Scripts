@@ -1,6 +1,7 @@
 import random
 from typing import Dict, Any
 import json
+import string
 
 from backend.utils import send_get_request, send_post_request, send_put_request
 
@@ -56,13 +57,10 @@ class Fuzzer:
             self.start_fuzzer_put()
        
 
-    def generate_fuzzing_params(self, max_length: int = 100, char_start: int = 32, char_range: int = 32) ->str:
-        
-        string_length = random.randrange(0, max_length + 1)
-        out = ""
-        for i in range(0, string_length):
-            out += chr(random.randrange(char_start, char_start+char_range))
-        return out
+    def generate_fuzzing_params(self, max_length: int = 100) ->str:
+        characters = string.ascii_letters + string.digits
+        string_length = random.randint(0, max_length)
+        return ''.join(random.choice(characters) for _ in range(string_length))
 
     def start_fuzzer_get(self):
         fuzzed_string = self.generate_fuzzing_params()  
