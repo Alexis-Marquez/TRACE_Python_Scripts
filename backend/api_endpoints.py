@@ -17,7 +17,8 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-
+fuzzer_data = None
+fuzzer_links = None
 crawler_data: Optional [Dict[str, Any]] = None
 crawler_links: Optional[list[str]] = None
 
@@ -52,7 +53,7 @@ def set_up_fuzzer(config: FuzzerConfig):
             fuzzer = Fuzzer()
 
         fuzzer.start()
-        
+        print("kjadshf")
         fuzzer_data = fuzzer.get_data()
         fuzzer_links = fuzzer.get_links()
 

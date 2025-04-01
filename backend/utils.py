@@ -18,13 +18,13 @@ def send_get_request(curr_dir, request_delay, page_count, page_limit, user_agent
         time.sleep(request_delay / 1000)
         try:
             req = requests.get(curr_dir, headers={'User-Agent': user_agent_string})
+            print("Currently at", curr_dir, req.status_code)
             return req.text, req.status_code
         except Exception as e:
             print(f"[ERROR] Connection error: {e}")
         return None
 
-def send_post_request(curr_dir, request_delay, json_string, page_count, page_limit, user_agent_string, cookies=None): 
-    # TODO: fix optional arguments
+def send_post_request(curr_dir, request_delay, json_string, page_count, page_limit, user_agent_string, cookies=None):
     if page_count>=page_limit:
         return None
     time.sleep(request_delay/1000)
