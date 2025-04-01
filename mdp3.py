@@ -165,6 +165,8 @@ class CredentialMDP:
             score += 0.2 #weight for starting with lowercase
         if not re.search(r'\s', username):
             score += 0.1 #weight for no spaces
+        if re.match(r'^\d', username):
+            score -= 0.5  # Strong penalty for starting with a number
         return score
 
     # Get the reward for a state-action pair
@@ -186,6 +188,11 @@ class CredentialMDP:
         if not possible_actions:
             return "", ""
 
+        # filter possible actions to exclude non-English characters
+        possible_actions = [act for act in possible_actions if re.match(r'^[a-zA-Z0-9]$', act)]
+        if not possible_actions:
+            return "", ""
+        
         if random.random() < self.epsilon:
             action = random.choice(possible_actions)
             next_char = random.choice(list(self.state_transitions[state][action]))
