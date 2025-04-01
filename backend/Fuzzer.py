@@ -25,6 +25,7 @@ class Fuzzer:
             return
         for key in self.default_config.keys():
             if key not in config:
+                print(key)
                 raise KeyError("Invalid config dictionary")
         try:
             self.config = {

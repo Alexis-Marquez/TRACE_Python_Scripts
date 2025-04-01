@@ -2,7 +2,7 @@ import socket
 from typing import Dict, Any
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
-from utils import send_get_request
+from backend.utils import send_get_request
 
 from backend.DirectoryTreeCreator import DirectoryTreeCreator
 

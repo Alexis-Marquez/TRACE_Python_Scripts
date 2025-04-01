@@ -32,9 +32,10 @@ class CrawlerConfig(BaseModel):
 class FuzzerConfig(BaseModel):
     TargetURL: str
     HTTPMethod: str
-    Cookies: str
+    Cookies: list
     HideStatusCode: list
     ShowOnlyStatusCode: list
+    FilterContentLength: int
     PageLimit: int
     WordList: list
 
@@ -44,9 +45,12 @@ def set_up_fuzzer(config: FuzzerConfig):
     try:
         fuzzer_data = None
         fuzzer_links = None
-
-        fuzzer = Fuzzer(config.model_dump())
         print("Received config: ", config)
+        if config:
+            fuzzer = Fuzzer(config.model_dump())
+        else:
+            fuzzer = Fuzzer()
+
         fuzzer.start()
         
         fuzzer_data = fuzzer.get_data()
