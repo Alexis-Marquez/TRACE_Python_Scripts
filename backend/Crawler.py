@@ -14,7 +14,7 @@ class Crawler:
             "CrawlDepth": 10,
             "PageNumberLimit": int(20),
             "UserAgent": "",
-            "RequestDelay": 1
+            "RequestDelay": 1000
         }
     def __init__(self, config = None):
         if config is None:
@@ -182,7 +182,7 @@ class Crawler:
     def send_request(self, curr_dir):
         if self.page_count >= self.config['PageNumberLimit']:
             return None
-        time.sleep(self.config['RequestDelay'])
+        time.sleep(self.config['RequestDelay']/1000)
         try:
             req = requests.get(curr_dir, headers={'User-Agent': self.config['UserAgent']})
             if req.status_code == 200:
@@ -223,7 +223,7 @@ class Crawler:
         # Update crawler data and links in real-time
         set_crawler_links(links)
         set_crawler_data(crawler_data)
-        print(f"Updated crawler data for:")
+        print(f"Updated crawler data:")
 
     def getConfig(self):
         if self.config is None:

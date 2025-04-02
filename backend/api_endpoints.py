@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 
+from starlette.responses import JSONResponse
+
 from backend.Crawler import Crawler
 from backend.Fuzzer import Fuzzer
 from mdp3 import WebScraper, nlp_subroutine, CredentialGeneratorMDP
@@ -26,6 +28,8 @@ fuzzer_data = None
 fuzzer_links = None
 crawler_data: Optional [Dict[str, Any]] = None
 crawler_links: Optional[list[str]] = None
+crawler:Crawler = None
+operation_done:bool = False
 
 class CrawlerConfig(BaseModel):
     TargetURL: str
@@ -58,7 +62,6 @@ def set_up_fuzzer(config: FuzzerConfig):
             fuzzer = Fuzzer()
 
         fuzzer.start()
-        print("kjadshf")
         fuzzer_data = fuzzer.get_data()
         fuzzer_links = fuzzer.get_links()
 
@@ -77,26 +80,41 @@ def get_fuzzer_data():
     
 @app.post("/crawler")
 async def set_up_crawler(config: CrawlerConfig, background_tasks: BackgroundTasks):
-    global crawler_data, crawler_links
+    global crawler_data, crawler_links, crawler, operation_done
     crawler_data = None
     crawler_links = None
+    crawler = None
+    operation_done = False
 
     def run_crawler():
-        global crawler_data, crawler_links
+        global crawler_data, crawler_links, crawler, operation_done
         crawler_data = None
         crawler_links = None
         crawler = Crawler(config.model_dump())
         crawler.start_crawl()
         crawler_data = crawler.tree_creator.get_tree_map(crawler.tree_creator.tree.root)
         crawler_links = crawler.getCrawlResults()
+        operation_done = True
 
     background_tasks.add_task(run_crawler)
     return {"message": "Crawl started in the background"}
 
 @app.get("/crawler/data")
 def get_crawler_data():
-    if crawler_data is None:
+    global crawler_data, crawler_links, crawler
+    if crawler_data is None or crawler_links is None or crawler is None:
         raise HTTPException(status_code=400, detail="No data available")
+    elif len(crawler_links) < crawler.config['PageNumberLimit'] and operation_done is False:
+        total_data_count = len(crawler_links)
+
+        return JSONResponse(
+            content={
+                "status": "partial",
+                "data": crawler_data
+            },
+            status_code=206,
+            headers={"Content-Range": total_data_count * "links"}
+        )
     return crawler_data
 
 @app.get("/webscraper")
