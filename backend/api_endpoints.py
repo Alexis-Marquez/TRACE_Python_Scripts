@@ -117,6 +117,25 @@ def get_crawler_data():
         )
     return crawler_data
 
+@app.get('Crawler/data/links')
+def get_crawler_data_links():
+    global crawler_data, crawler_links, crawler
+    if crawler_data is None or crawler_links is None or crawler is None:
+        raise HTTPException(status_code=400, detail="No data available")
+    elif len(crawler_links) < crawler.config['PageNumberLimit'] and operation_done is False:
+        total_data_count = len(crawler_links)
+
+        return JSONResponse(
+            content={
+                "status": "partial",
+                "data": crawler_links
+            },
+            status_code=206,
+            headers={"Content-Range": total_data_count * "links"}
+        )
+    return crawler_links
+
+
 @app.get("/webscraper")
 def get_webscraper_data():
     if crawler_data is None or crawler_links is None:
