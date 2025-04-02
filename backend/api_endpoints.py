@@ -24,8 +24,8 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-fuzzer_data = None
-fuzzer_links = None
+fuzzer_data = Optional [list[str,str]]
+fuzzer_links = [list[str]]
 fuzzer:Fuzzer = None
 crawler_data: Optional [Dict[str, Any]] = None
 crawler_links: Optional[list[str]] = None
@@ -66,12 +66,12 @@ async def set_up_fuzzer(config: FuzzerConfig, background_tasks: BackgroundTasks)
 
             fuzzer.start()            
             fuzzer_data = None # I don't know what is supposed to go here
-            fuzzer_data = None # I don't know what is supposed to go here
+            fuzzer_links = None # I don't know what is supposed to go here
             operation_done = True
             fuzzer_data = fuzzer.get_data()
             fuzzer_links = fuzzer.get_links()
         
-        BackgroundTasks_tasks.add_task(run_fuzzer)
+        background_tasks.add_task(run_fuzzer)
         return {"message": "Fuzz completed successfully"}
 
     except Exception as e:
@@ -81,10 +81,21 @@ async def set_up_fuzzer(config: FuzzerConfig, background_tasks: BackgroundTasks)
 
 @app.get("/fuzzer/data")
 def get_fuzzer_data():
-    if fuzzer_data is None:
+    global fuzzer_data, fuzzer_links, fuzzer
+    if fuzzer_data is None or fuzzer_links is None or fuzzer is None:
         raise HTTPException(status_code=400, detail="No data available")
+    elif len(fuzzer_links) < fuzzer.config['PageNumberLimit'] and operation_done is False:
+        total_data_count = len(fuzzer_links)
+        return JSONResponse(
+                content={
+                    "status": "partial",
+                    "data": fuzzer_data
+                },
+                status_code=206,
+                headers={"Content-Range": total_data_count * "links"}
+        )
     return fuzzer_data
-    
+
 @app.post("/crawler")
 async def set_up_crawler(config: CrawlerConfig, background_tasks: BackgroundTasks):
     global crawler_data, crawler_links, crawler, operation_done
