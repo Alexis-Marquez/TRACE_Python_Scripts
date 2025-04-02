@@ -26,6 +26,7 @@ app.add_middleware(
 
 fuzzer_data = None
 fuzzer_links = None
+fuzzer:Fuzzer = None
 crawler_data: Optional [Dict[str, Any]] = None
 crawler_links: Optional[list[str]] = None
 crawler:Crawler = None
@@ -50,27 +51,33 @@ class FuzzerConfig(BaseModel):
     WordList: list
 
 @app.post("/fuzzer")
-def set_up_fuzzer(config: FuzzerConfig):
+async def set_up_fuzzer(config: FuzzerConfig, background_tasks: BackgroundTasks):
     global fuzzer_data, fuzzer_links
     try:
-        fuzzer_data = None
-        fuzzer_links = None
-        print("Received config: ", config)
-        if config:
-            fuzzer = Fuzzer(config.model_dump())
-        else:
-            fuzzer = Fuzzer()
+        def run_fuzzer():
+            global fuzzer_data, fuzzer_links, fuzzer, operation_done
+            fuzzer_data = None
+            fuzzer_links = None
+            print("Received config: ", config)
+            if config:
+                fuzzer = Fuzzer(config.model_dump())
+            else:
+                fuzzer = Fuzzer()
 
-        fuzzer.start()
-        fuzzer_data = fuzzer.get_data()
-        fuzzer_links = fuzzer.get_links()
-
+            fuzzer.start()            
+            fuzzer_data = None # I don't know what is supposed to go here
+            fuzzer_data = None # I don't know what is supposed to go here
+            operation_done = True
+            fuzzer_data = fuzzer.get_data()
+            fuzzer_links = fuzzer.get_links()
+        
+        BackgroundTasks_tasks.add_task(run_fuzzer)
         return {"message": "Fuzz completed successfully"}
 
     except Exception as e:
         print(e)
         raise HTTPException(status_code=400, detail=str(e))
-
+    
 
 @app.get("/fuzzer/data")
 def get_fuzzer_data():
@@ -142,3 +149,10 @@ def set_crawler_data(data):
 def set_crawler_links(links):
     global crawler_links
     crawler_links = links
+
+def set_fuzzer_data(data):
+    global fuzzer_data
+    fuzzer_data = data
+def set_fuzzer_links(links):
+    global fuzzer_links
+    fuzzer_links = links

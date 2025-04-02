@@ -124,3 +124,12 @@ class Fuzzer:
         self.op_results = {} #reset operation results
         self.visited_urls = set() #reset curr list of visited urls
         self.page_count = 0 #reset pages count
+
+
+    def update_fuzzer_data(self, links, fuzzer_data):
+        from backend.api_endpoints import set_fuzzer_data, set_fuzzer_links
+        # Update fuzzer data and links in real-time
+        set_fuzzer_links(links)
+        set_fuzzer_data(fuzzer_data)
+        print(f"Updated fuzzer data for:")
+    
