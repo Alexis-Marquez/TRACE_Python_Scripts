@@ -78,6 +78,7 @@ class Fuzzer:
             raise TypeError("Invalid mode")
         self.op_results[curr_dir] = response, status_code
         self.visited_urls.add(curr_dir)
+        self.update_fuzzer_data(links=self.visited_urls, fuzzer_data=self.op_results)
         self.page_count+=1
 
     def start_fuzzer_get(self):
