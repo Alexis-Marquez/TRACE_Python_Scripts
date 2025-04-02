@@ -36,6 +36,14 @@ def nlp_subroutine(csv_path: str):
             # text = result 
             # #End of separating hypens Failure lead to taking too long, potentially infinite loop
             words = re.findall(r"\w+", text, flags=re.IGNORECASE) #original
+            ascii_words = []
+            for word in words:
+                try:
+                    word.encode('ascii')
+                    ascii_words.append(word)
+                except UnicodeEncodeError:
+                    pass # Skip word if it contains non-ASCII characters
+            words = ascii_words
             filtered_words = [
                 word for word in words
                 if word.lower() not in stopwords and (len(word)>= 4 or word.isupper())#added word length and acronym catch
@@ -129,7 +137,7 @@ def load_wordlist(file_path: str) -> List[str]:
 # Class for managing the Markov Decision Process for generating credentials 
 # #defaults are in another file
 class CredentialMDP:
-    def __init__(self, order: int = 2, gamma: float = 0.9): #modify gamma and maybe order to increase password length
+    def __init__(self, order: int = 2, gamma: float = 0.6): #modify gamma and maybe order to increase password length
         self.order = order
         self.gamma = gamma
         self.q_values: Dict[str, Dict[Tuple[str, str], float]] = defaultdict(lambda: defaultdict(float))
@@ -138,18 +146,19 @@ class CredentialMDP:
         self.epsilon = 0.1 #mess with this #this is what influences the greedy algorithm in choosing actions
         self.learning_rate = 0.1 #mess with this #this is how small a step is taken in each iteration, usually the smaller the better but this can lead to some rediculous runtimes
         self.initial_states: List[str] = []
+        #Original order = 2, gamma = 0.9, epsilon = 0.1, learning_rate = 0.1
 
     # Calculate the strength of a password
     def calculate_password_strength(self, password: str) -> float:
         score = 0.0
         if len(password) >= 12:
-            score += 0.3 #weight for length
+            score += 0.4 #weight for length
         if re.search(r'[A-Z]', password):
             score += 0.2 #weight for characters
         if re.search(r'[0-9]', password):
-            score += 0.2 #weight for integers
+            score += 0.3 #weight for integers
         if re.search(r'[!@#$%^&*]', password):
-            score += 0.2 #weight for special characters
+            score += 0.5 #weight for special characters
         if len(set(password)) >= 8:
             score += 0.1
         return score
@@ -168,15 +177,42 @@ class CredentialMDP:
         if re.match(r'^\d', username):
             score -= 0.5  # Strong penalty for starting with a number
         return score
-
+        
     # Get the reward for a state-action pair
     def get_reward(self, state: str, action: str, next_char: str) -> float:
         if 'username' in state:#before this we could also introduce a unique state for special symbols BUT I think it's messy/low priority
             current = state[9:] + next_char
             return self.calculate_username_quality(current) / len(current)
         else:
-            current = state[9:] + next_char #we could implement a reward for special characters here
-            return self.calculate_password_strength(current) / len(current)
+            # Original password code
+            #
+            # current = state[9:] + next_char #we could implement a reward for special characters here
+            # return self.calculate_password_strength(current) / len(current)
+            current = state[9:] + next_char
+            base_score = self.calculate_password_strength(current)
+
+            if len(set(current))>= 8:
+                base_score += 0.3
+            if next_char in "!@#$%^&*()_+-=[]}{|<>?/":
+                base_score += 0.5
+            if next_char.isdigit() and random.random() < 0.3:
+                base_score += 0.2
+            if len(state)>3:
+                prev_char = state[-1]
+                if self.get_char_type(next_char) == self.get_char_type(prev_char):
+                    base_score -= 0.3
+            return base_score
+        
+    #For encouraging randomness
+    def get_char_type(self, c: str):
+        if c.isdigit():
+            return "digit"
+        elif c.islower():
+            return "lower"
+        elif c.isupper():
+            return "upper"
+        else:
+            return "special"
 
     # Get possible actions for a state
     def get_possible_actions(self, state: str) -> List[str]:
@@ -189,27 +225,45 @@ class CredentialMDP:
             return "", ""
 
         # filter possible actions to exclude non-English characters
-        possible_actions = [act for act in possible_actions if re.match(r'^[a-zA-Z0-9]$', act)]
-        if not possible_actions:
-            return "", ""
+        # possible_actions = [act for act in possible_actions if re.match(r'^[a-zA-Z0-9]$', act)]
+        allowed_chars_pattern = r'^[a-zA-Z0-9!@#$%^&*()_+=[]{}\\|<>?/ -]$'
+        possible_actions = [act for act in possible_actions if re.match(allowed_chars_pattern,act) and len(act == 1)]
         
+        potential_random_adds = list("!@#$%^&*1234567890")
+        if not possible_actions and not potential_random_adds:
+            return "", ""
+
         if random.random() < self.epsilon:
-            action = random.choice(possible_actions)
-            next_char = random.choice(list(self.state_transitions[state][action]))
+            choices = possible_actions + potential_random_adds
+            if not choices: return "",""
+
+            action = random.choice(choices)
+            if action in self.state_transitions[state] and self.state_transitions[state][action]:
+                next_char = random.choice(list(self.state_transitions[state][action]))
+            else:
+                next_char = action
+
         else:
             # Choose best action based on Q-values
             action_values = {}
-            for act in possible_actions:
+            valid_greedy_actions = [act for act in possible_actions if act in self.state_transitions[state]]
+            
+            for act in valid_greedy_actions:
                 if self.state_transitions[state][act]:
-                    value = max([self.q_values[state][(act, nxt_ch)] for nxt_ch in self.state_transitions[state][act]])
+                    value = max([self.q_values[state].get((act, nxt_ch),0) for nxt_ch in self.state_transitions[state][act]], default=0)
                     action_values[act] = value
 
             if action_values:
                 action = max(action_values.items(), key=lambda x: x[1])[0]
                 next_char = random.choice(list(self.state_transitions[state][action]))
-            else:
+            elif possible_actions:
                 action = random.choice(possible_actions)
-                next_char = random.choice(list(self.state_transitions[state][action]))
+                if action in self.state_transitions[state] and self.state_transitions[state][action]:
+                    next_char = random.choice(list(self.state_transitions[state][action]))
+                else:
+                    next_char = action
+            else:
+                return "",""
 
         return action, next_char
 
@@ -313,9 +367,41 @@ class CredentialGeneratorMDP:
 
     # Enhance the generated password
     def enhance_password(self, password: str) -> str:
-        enhanced = password.capitalize()
-        enhanced = f"{enhanced}{random.choice('!@#$%^&*')}{random.randint(0, 9)}"
-        return enhanced
+        password_list = list(password)
+        
+        if len(password_list) < self.min_password_length: # Ensure minimum length before complex enhancement
+             needed = self.min_password_length - len(password_list)# Add padding if needed
+             for _ in range(needed):
+                 password_list.append(random.choice('abcdefghijklmnopqrstuvwxyz')) # Add simple padding
+
+        letter_indices = [i for i, char in enumerate(password_list) if char.isalpha()] # Randomly change case of 1 to 3 letters
+        num_case_changes = random.randint(1, min(3, len(letter_indices))) # Change case of up to 3 letters
+        indices_to_change = random.sample(letter_indices, num_case_changes)
+        for i in indices_to_change:
+            if password_list[i].islower():
+                password_list[i] = password_list[i].upper()
+            else:
+                password_list[i] = password_list[i].lower()
+                
+        if letter_indices and not any(password_list[i].isupper() for i in letter_indices): # Make sure at least one is uppercase (if letters exist)
+             idx_to_upper = random.choice(letter_indices)
+             password_list[idx_to_upper] = password_list[idx_to_upper].upper()
+
+        num_digits = random.randint(1, 2) # Insert 1 to 2 random digits at random positions
+        for _ in range(num_digits):
+            digit = str(random.randint(0, 9))
+            insert_pos = random.randint(0, len(password_list))
+            password_list.insert(insert_pos, digit)
+
+        # Insert 1 to 2 random special characters at random positions
+        special_chars = "!@#$%^&*()_+-=[]}{|<>?/" # Can change defined special characters
+        num_special = random.randint(1, 2)
+        for _ in range(num_special):
+            char = random.choice(special_chars)
+            insert_pos = random.randint(0, len(password_list))
+            password_list.insert(insert_pos, char)
+            
+        return "".join(password_list)
 
     # Generate multiple credentials
     def generate_credentials(self, count: int = 10) -> List[Tuple[str, str]]:
