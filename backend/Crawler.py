@@ -14,7 +14,7 @@ class Crawler:
             "CrawlDepth": 10,
             "PageNumberLimit": int(20),
             "UserAgent": "",
-            "RequestDelay": 2000
+            "RequestDelay": 1000
         }
     def __init__(self, config = None):
         if config is None:
@@ -182,7 +182,7 @@ class Crawler:
     def send_request(self, curr_dir):
         if self.page_count >= self.config['PageNumberLimit']:
             return None
-        time.sleep(self.config['RequestDelay'] / 1000)
+        time.sleep(self.config['RequestDelay']/1000)
         try:
             req = requests.get(curr_dir, headers={'User-Agent': self.config['UserAgent']})
             if req.status_code == 200:
@@ -190,6 +190,8 @@ class Crawler:
                 self.op_results[curr_dir] = req.text
                 self.visited_urls.add(curr_dir)
                 self.page_count+=1
+                if self.tree_creator.tree.root is not None:
+                    self.update_crawler_data(self.visited_urls, self.tree_creator.get_tree_map(self.tree_creator.tree.root))
                 return req.text
             else:
                 print(f"[ERROR] Failed to access {curr_dir}: {req.status_code}")
@@ -212,10 +214,17 @@ class Crawler:
                 valid_links.append(link)
             elif parsed.scheme == "":
                 valid_links.append(urljoin(curr_dir, link))
-
             page_count += 1
         print("valid links", valid_links)
         return valid_links
+
+    def update_crawler_data(self, links, crawler_data):
+        from backend.api_endpoints import set_crawler_data, set_crawler_links
+        # Update crawler data and links in real-time
+        set_crawler_links(links)
+        set_crawler_data(crawler_data)
+        print(f"Updated crawler data:")
+
     def getConfig(self):
         if self.config is None:
             self.reset()
